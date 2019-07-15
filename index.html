@@ -1,0 +1,359 @@
+<html>
+<head>
+    <title>three.js</title>
+    <script src="three.js"></script>
+    <style>
+        body {
+            height: 100%;
+            width: 100%;
+            margin: 0px;
+            overflow: hidden;
+            font-family: Verdana;
+        }
+
+        #leftPanel {
+            position: absolute;
+            left: 0px;
+            top: 0px;
+            width:100px;
+        }
+
+        #rightPanel {
+            position: fixed;
+            right: 0px;
+            top: 0px;
+            width:250px;
+            height:100%;
+            color:white;
+            background-color:black;
+            opacity:0.6;
+        }
+
+        #kompas {
+            width:250px;
+            height:250px;
+
+        }
+    </style>
+    <script>
+        var x;
+        var y;
+        var szer = window.innerWidth;
+        var wys = window.innerHeight;
+        var keyTab = [];
+
+        function onMove(e) {
+            x = e.clientX;
+            y = e.clientY;
+        }
+
+        function onLoad() {
+            var obj = new THREE.Object3D();
+            var scale = 1.2;
+            var scene = new THREE.Scene();
+            var camera = new THREE.PerspectiveCamera(
+            60, // k¹t patrzenia kamery (FOV - field of view)
+            window.innerWidth / window.innerHeight, // proporcje widoku
+            0.1, // min renderowana odleg³oœæ
+            10000 // max renderowana odleg³oœæ
+            );
+            var renderer = new THREE.WebGLRenderer();
+
+            var spotLight = new THREE.SpotLight(0xffffff, 1);
+            spotLight.position.set(-20, 10, 0);
+            var lampy = new THREE.Object3D();
+            lampy.add(spotLight);
+            scene.add(lampy);
+            
+
+            // kolor t³a - uwaga na prefix 0x a nie #
+
+            renderer.setClearColor(0x0099ff);
+
+            //ustalenie rozmiarów renderowanego okna w px (szer, wys)
+
+            renderer.setSize(szer, wys);
+
+            document.getElementById("mainDiv").appendChild(renderer.domElement);
+
+            //geometria pod³o¿a (wydajniejsze dzia³anie ni¿ PlaneGeometry )
+
+            var geom = new THREE.PlaneBufferGeometry(500 , 500);
+
+            //mesh pod³o¿a
+            var mat = new THREE.MeshPhongMaterial({ side: THREE.DoubleSide, map: THREE.ImageUtils.loadTexture('grass.jpg') });
+           // mat.needsUpdate = true;
+            var mesh = new THREE.Mesh(geom, mat);
+            var meshModel;
+            mesh.rotateX(0.5*Math.PI);
+            //mesh.rotateY(0.5*Math.PI); 
+            //mesh.rotateZ(0.5*Math.PI); 
+            mesh.material.map.repeat.set(64, 64); //gêstoœæ powtarzania
+            mesh.material.map.wrapS = mesh.material.map.wrapT = THREE.RepeatWrapping; // powtarzanie w obu kierunkach
+            scene.add(mesh);
+            //model - animacje itd
+            var loader = new THREE.JSONLoader();
+            loader.load('models/KNUCKLES.js', function (geometry, modmat) {
+                geometry.computeMorphNormals();
+
+                //mat.morphNormals = true;
+
+                var modmat = new THREE.MeshPhongMaterial(
+                {
+                    map: THREE.ImageUtils.loadTexture ("models/KNUCKLES.png"), 
+					//color: 0x0000ff, side: THREE.DoubleSide, wireframe: true, 					
+                    morphTargets: true,
+                    morphNormals: true,
+                    specular: 0xffffff,
+                    shininess: 3,
+                    shading: THREE.SmoothShading,
+                    vertexColors: THREE.FaceColors
+
+                });
+                //modmat.needsUpdate = true;
+
+                //mesh dla modelu musi byæ typu MorphAnimMesh    
+            
+                meshModel = new THREE.MorphAnimMesh(geometry, modmat);
+                meshModel.name = "knuckles";
+                meshModel.rotation.y = 0; // ustaw obrót modelu
+                meshModel.position.y = 0; // ustaw pozycje modelu
+                meshModel.scale.set(sx,sy,sz); // ustaw skalê modelu                   
+
+                //                   
+
+                scene.add(meshModel);
+
+                //animacje modelu
+                //- w powy¿szej funkcji ³aduj¹cej model, po ustaleniu pozycji, obrotu i skali modelu:
+                //- odczytanie animacji z modelu
+
+                meshModel.parseAnimations();
+
+                //tutaj dodajê do w³asnej tablicy animacje modelu
+                //UWAGA: tutaj tu tworzê te¿ butony do wyboru animacji
+
+                for (var key in meshModel.geometry.animations) {
+
+                    if (key === 'length' || !meshModel.geometry.animations.hasOwnProperty(key)) continue;
+                    keyTab.push(key);
+                    //console.log(key)
+                }
+
+                //od razu odgrywam pierwsz¹ animacjê
+
+                meshModel.playAnimation(keyTab[0], 10);
+
+                //var box = new THREE.Box3().setFromObject(meshModel);
+                //console.log(box.min, box.max, box.size());
+                //console.log(box.size().y);
+
+                
+
+                for (var i = 0; i < keyTab.length; i++) {
+                    var temp = document.createElement('div');
+                    //temp.id = i;
+                    temp.innerHTML = keyTab[i];
+                    temp.style.position = 'absolute';
+                    temp.style.color = '#FFFFFF';
+                    temp.align = "center";
+                    temp.style.opacity = "0.5";
+                    temp.style.lineHeight = "40px";
+                    temp.style.backgroundColor = '#000000';
+                    temp.style.width = '70px';
+                    temp.style.height = '40px';
+                    temp.style.top = i * 40 + 'px';            
+                    temp.addEventListener('mousedown', function (event) {
+                        meshModel.playAnimation(event.target.innerHTML, 10);
+                    })
+                    document.getElementById("leftPanel").appendChild(temp);
+                }
+
+            });
+
+            var sx = 0.1;
+            var sy = 0.1;
+            var sz = 0.1;
+
+            
+
+            //kanwasik
+            var canvas = document.getElementById("kanwas");
+            var ctx = canvas.getContext("2d");
+            //context.beginPath // pocz¹tek sciezki
+            //context.arc // ³uk, ko³o
+            //context.rotate // obracanie
+            //context.translate // przesuniecie punktu 0,0 
+            //context.clearRect // czyszczenie
+            //context.fillText // dodanie tekstu
+            //context.restore // przywrócenie stanu sprzed zmian
+            //context.stroke // kolor krawêdzi obiektu
+  
+            //ctx.arc(x, y, 50, kat * Math.PI, kat * Math.PI + Math.PI * 1 / 4)
+            ctx.beginPath();
+            ctx.lineWidth = 4;
+            ctx.arc(125, 125, 100, 0 , 2 * Math.PI)
+            ctx.strokeStyle = "rgba(255,255,255,1)"
+            ctx.stroke();
+            ctx.closePath();
+            ctx.beginPath();
+            //ctx.moveTo(250,250);
+            ctx.arc(125, 125, 50, 0, 2 * Math.PI)
+            ctx.strokeStyle = "rgba(255,255,255,1)"
+            ctx.stroke();
+            ctx.closePath();
+
+
+            //pozycja kamery - tu zobacz uk³ad wspó³rzêdnych THREEJS:
+
+            //http://admins.spec.pl.hostingasp.pl/Stefa%C5%84czyk_Dariusz/THREEJS/utils/lefthand2.jpg               
+
+            var r = 10;
+            var angle = 0;
+			
+            camera.position.x = r * Math.sin(angle);// * Math.sin(pos);
+            camera.position.y = 5;
+
+            camera.position.z = r * Math.cos(angle);// * Math.cos(pos);
+           
+            //nakierowanie kamery na punkt (0,0,0) w przestrzeni
+
+            //camera.lookAt(mesh.position);
+            camera.lookAt(new THREE.Vector3(0, 0, 0));
+            //zarejestruj eventy klawiatury
+
+            var x;
+            var y;
+            var z;
+
+            document.addEventListener("keydown", onKeyDown, false); // naciœniêcie dowolnego klawisza
+            document.addEventListener("keyup", onKeyUp, false); //zwolnienie dowolnego klawisza
+
+            //sprawdzaj który klawisz jest naciakany/zwalniany
+            var blockMode = false;
+            var lastMesh;
+            function onKeyDown(event) {
+
+                var keyCode = event.which; // kod klawisza
+
+                //console.log(keyCode);
+
+                if (blockMode == false) {
+                    switch (keyCode) {
+                        case 65:
+                            //console.log("naciskasz A");                       
+                            goLeft = true;
+                            break;
+                        case 83:
+                            //console.log("naciskasz S");
+                            goBelow = true;
+                            break;
+                        case 68:
+                            //console.log("naciskasz D");
+                            goRight = true;
+                            break;
+                        case 87:
+                            //console.log("naciskasz W");
+                            goAbove = true;
+                            break;
+                    }
+                }
+
+            }
+
+            function onKeyUp() {
+                goAbove = false;
+                goBelow = false;
+                goRight = false;
+                goLeft = false;
+            }
+
+            var goAbove;
+            var goBelow;
+            var goRight;
+            var goLeft;
+            //kluczowy element - animacja     
+            //- zdefiniuj zegar odmierzaj¹cy czas równomiernie niezale¿nie od wydajnoœci komputera
+            var clock = new THREE.Clock();
+
+            function animateScene() {
+               
+                
+                //- a teraz wszystko w animateScene:
+                var delta = clock.getDelta();
+
+                //console.log(delta) // zobacz czy widaæ zwiêkszaj¹c¹ siê cyfrê w konsoli 
+
+                //aktualizacja wygl¹du animacji
+                if(meshModel != undefined)
+                meshModel.updateAnimation(delta * 1000);
+
+
+                //zmieniajaca siê wartoœæ czyli rotacja obiektu
+                //w tym miejscu ustalamy wszelkie zmiany w projekcie (obrót, skalê, po³o¿enie obiektów)
+
+                //obj.rotation.y += 0.01;
+
+                //wykonywanie funksji bez koñca ok 60 fps jesli siê da
+
+                requestAnimationFrame(animateScene);
+                if (goAbove) {
+                    camera.position.y += 0.1;
+                }
+
+                if (goBelow) {
+                    camera.position.y -= 0.1;
+                }
+
+                if (goRight) {
+                    camera.position.x = r * Math.sin(angle); //ruch punktu po okregu http://pl.wikipedia.org/wiki/Uk%C5%82ad_wsp%C3%B3%C5%82rz%C4%99dnych_biegunowych#/media/File:Euler%27s_formula.svg
+                    camera.position.z = r * Math.cos(angle);
+                    angle += 0.05;
+                }
+
+                if (goLeft) {
+                    camera.position.x = r * Math.sin(angle);
+                    camera.position.z = r * Math.cos(angle);
+                    angle -= 0.05;
+                }
+
+                //ci¹g³e renderowanie / wyœwietlanie widoku sceny nasza kamer¹
+                camera.lookAt(new THREE.Vector3(0, 0, 0));
+                renderer.render(scene, camera);
+                
+                //skalowanie
+                //mesh.scale.set(scale, scale, scale)
+            }
+
+            //jednokrotne wykonanie powy¿szej funkcji
+
+            animateScene();
+
+            //W THREEJS Nie istnieje ¿eden event zwi¹zany z klikniêciem w Mesh-a
+            //Aby "klikn¹æ" lub wykonaæ inny sposób interakcji z obiektem, musimy skorzystaæ z techniki tzw Raycastingu czyli 
+            //rzutowania promieni:
+
+            http://admins.spec.pl.hostingasp.pl/Stefa%C5%84czyk_Dariusz/THREEJS/utils/raycasting.png
+
+            //zdefiniuj dwa obiekty:
+            var raycaster = new THREE.Raycaster(); // obiekt symuluj¹cy "rzucanie" promieni
+            var mouseVector = new THREE.Vector2() // wektor (x,y) wykorzystany bedzie do okreœlenie pozycji myszy na ekranie
+
+            //obs³uga funkcji onMouseDown
+
+        };
+    </script>
+</head>
+<body onload="onLoad()" onmousemove="onMove(event);">   
+    <div id="mainDiv"></div>
+    <div id="leftPanel"></div>
+    <div id="rightPanel">
+        <div id="kompas">
+            <canvas width="250" height="250" id="kanwas"></canvas> 
+        </div>
+        <div id="suwak">
+            <div id="thumb"></div>
+        </div>
+    </div>
+</body>
+</html>
